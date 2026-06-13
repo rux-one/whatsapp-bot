@@ -1,0 +1,12 @@
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Docker bind-mount dir: WhatsApp session + chat history. Never commit.
+/data/*
+!/data/.gitkeep
+
+# Local secrets / config — never commit
+.env
+.env.*
+!.env.example

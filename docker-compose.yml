@@ -1,0 +1,14 @@
+services:
+  whatsapp-bot:
+    build: .
+    image: whatsapp-bot
+    container_name: whatsapp-bot
+    restart: unless-stopped
+    env_file: .env                 # OLLAMA_URL/MODEL, group allowlist, fallback message, etc.
+    environment:
+      WA_DATA_PATH: /data          # overrides .env's ./.wwebjs_auth — session + history live in ./data
+    volumes:
+      - ./data:/data               # local host directory (bind mount), not a named volume
+    shm_size: "1gb"                # Chromium needs more than Docker's default 64MB /dev/shm
+    stdin_open: true               # keep stdin/tty so the QR code renders cleanly in `docker compose up`
+    tty: true

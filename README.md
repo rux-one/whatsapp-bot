@@ -1,0 +1,134 @@
+# WhatsApp Bot
+
+A WhatsApp bot built on [`whatsapp-web.js`](https://wwebjs.dev/), driven by a local
+[Ollama](https://ollama.com/) LLM. It:
+
+- **Answers with an LLM** when you `@mention` it **or reply to one of its messages** — the mention
+  handle (if any) is stripped and the rest of your message is sent to Ollama. Conversation history
+  is kept per chat for context.
+- **Greets new members** when they join a group chat.
+- **Responds to slash commands** `/greet` and `/hello` (in DMs or groups) with `Hello, World! 👋`.
+
+It does **not** reply to ordinary, non-mention messages, so it stays quiet in busy groups.
+
+## Requirements
+
+- Node.js ≥ 18 (tested on v24).
+- A dedicated WhatsApp account on a phone that stays online.
+- A running [Ollama](https://ollama.com/) server with a model pulled, e.g. `ollama pull llama3.1`.
+- On a **headless Linux server**, the bundled Chromium needs system shared libraries. The
+  `whatsapp-web.js` npm package downloads the Chromium *binary*, but not these OS-level deps:
+
+  ```bash
+  sudo apt-get update && sudo apt-get install -y \
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
+    libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 \
+    libpango-1.0-0 libcairo2 ca-certificates fonts-liberation
+  ```
+
+  Without these the process hangs and never prints a QR code. On a local desktop they are
+  usually already present.
+
+## Configuration
+
+Config lives in a gitignored `.env` file (copy the template):
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `WA_ALLOWED_GROUPS` | *(empty = all)* | Comma-separated group IDs the bot acts in |
+| `WA_CLIENT_ID` | `whatsapp-bot` | Session name (run multiple bots side by side) |
+| `WA_DATA_PATH` | `./.wwebjs_auth` | Where the session **and chat history** are stored — point at a persistent volume in deployment |
+| `OLLAMA_URL` | `http://localhost:11434` | Base URL of the Ollama server |
+| `OLLAMA_MODEL` | `llama3.1` | Model used for `@mention` replies (must be pulled in Ollama) |
+
+The greeting text and trigger commands are not sensitive, so they stay as constants at the top
+of `src/bot.js` rather than in `.env`.
+
+### LLM behavior
+
+- The **system prompt** lives in `prompts/AGENT.md` — edit it to change the bot's persona/tone.
+  It's loaded at startup, so restart after editing.
+- **Chat history** is per chat (a group is one shared thread), capped to the last ~20 turns, and
+  persisted to `chat-history.json` under `WA_DATA_PATH` so context survives restarts. The system
+  prompt is always included regardless of the cap.
+
+The WhatsApp login itself is **not** in `.env` — it's a session stored under `WA_DATA_PATH`
+(via `LocalAuth`). Keep that directory persistent across restarts so you don't re-scan the QR,
+and never commit it (it holds your session credentials).
+
+## Setup
+
+```bash
+npm install
+cp .env.example .env   # then edit if needed
+npm start
+```
+
+1. A QR code renders in the terminal.
+2. On the bot's phone: **WhatsApp → Settings → Linked Devices → Link a Device** → scan it.
+3. Wait for `✅ Bot connected and ready!`.
+
+The session is saved to `.wwebjs_auth/` (via `LocalAuth`), so you only scan once — restarts
+reconnect automatically. Never commit `.wwebjs_auth/` (it holds session credentials; already
+in `.gitignore`).
+
+## Testing
+
+- **Slash command:** from another number, DM `/hello` → bot replies `Hello, World! 👋`.
+  Send a normal message → bot stays silent.
+- **Group join:** add a new member to a group the bot is in → bot posts a welcome greeting.
+- **Persistence:** stop (`Ctrl-C`) and `npm start` again → no QR re-scan.
+
+## Run with Docker
+
+The image bundles Chromium, so no host setup is needed beyond Docker. Config still comes from `.env`
+(via `env_file`); it is **not** baked into the image.
+
+```bash
+cp .env.example .env          # set OLLAMA_URL / OLLAMA_MODEL etc.
+docker compose up --build     # attached, so you can scan the QR from the logs
+```
+
+1. Watch the logs for the QR code and scan it once.
+2. After `✅ Bot connected and ready!`, stop with `Ctrl-C` and re-run detached:
+
+```bash
+docker compose up -d
+docker compose logs -f        # follow logs if needed
+```
+
+The WhatsApp session **and** `chat-history.json` are stored in the local **`./data/`** directory
+(bind-mounted to `/data` via `WA_DATA_PATH`), so restarts/redeploys reconnect without a new QR. The
+directory is gitignored.
+
+**Notes:**
+- **First run must be attached** (`docker compose up`) to scan the QR; subsequent runs can be detached.
+- **Config/secrets** stay in `.env` only — injected at runtime via `env_file`, never baked into the
+  image (`.env` is in `.dockerignore`).
+- **Container runs as root** so the `./data` bind mount is writable regardless of host uid; files it
+  writes there will be root-owned (use `sudo` to remove them if needed).
+- **Reaching Ollama:** a bridge-network container reaches a Tailscale `OLLAMA_URL` (e.g.
+  `http://100.64.0.7:11434`) via the host's `tailscale0` route, which normally works. If it can't
+  connect, add `network_mode: host` to the `whatsapp-bot` service in `docker-compose.yml`.
+- **Don't change `WA_CLIENT_ID`** once scanned — it renames the session folder and forces a new QR.
+
+## Running persistently without Docker
+
+```bash
+npm install -g pm2
+pm2 start src/bot.js --name whatsapp-bot
+pm2 save
+```
+
+## Notes & limitations
+
+- `whatsapp-web.js` is an **unofficial** library; automating a personal account is against
+  WhatsApp's ToS. Risk is low for personal, low-volume use but real — use a dedicated number.
+- If WhatsApp Web changes its internals the library can break until updated. The version is
+  pinned (`whatsapp-web.js@1.34.7`) for reproducibility.
+- `group_join` only fires while the bot account is a participant of the group.
+- `LocalAuth` needs a persistent filesystem — not suitable for ephemeral hosts.
