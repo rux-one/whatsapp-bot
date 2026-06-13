@@ -4,9 +4,12 @@ services:
     image: whatsapp-bot
     container_name: whatsapp-bot
     restart: unless-stopped
+    init: true                     # tini as PID 1: forwards signals + reaps Chromium zombies
+    stop_grace_period: 30s         # give Chromium time to flush the session cleanly before SIGKILL
     env_file: .env                 # OLLAMA_URL/MODEL, group allowlist, fallback message, etc.
     environment:
       WA_DATA_PATH: /data          # overrides .env's ./.wwebjs_auth — session + history live in ./data
+      WA_STARTUP_DELAY_MS: "8000"  # wait before connecting on restart so WhatsApp releases the old session
     volumes:
       - ./data:/data               # local host directory (bind mount), not a named volume
     shm_size: "1gb"                # Chromium needs more than Docker's default 64MB /dev/shm

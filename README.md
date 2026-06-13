@@ -90,15 +90,23 @@ The image bundles Chromium, so no host setup is needed beyond Docker. Config sti
 
 ```bash
 cp .env.example .env          # set OLLAMA_URL / OLLAMA_MODEL etc.
-docker compose up --build     # attached, so you can scan the QR from the logs
+docker compose up -d --build  # start detached
+docker compose logs -f        # watch for the QR, then for "✅ Bot connected and ready!"
 ```
 
-1. Watch the logs for the QR code and scan it once.
-2. After `✅ Bot connected and ready!`, stop with `Ctrl-C` and re-run detached:
+1. Scan the QR from the logs **once**.
+2. **Wait ~1 minute after `✅ Bot connected and ready!` before doing anything else.** WhatsApp finishes
+   linking the device in the background after the scan; stopping/restarting too soon makes WhatsApp
+   *unpair* the device and you'll get a fresh QR on the next start.
+3. That's it — leave it running. `Ctrl-C` to stop the `logs -f` follow; the container keeps running.
+
+To stop or restart, use compose commands — **do not `Ctrl-C` an attached `docker compose up`** to stop
+it (the `restart: unless-stopped` policy will just relaunch it, churning the WhatsApp connection):
 
 ```bash
-docker compose up -d
-docker compose logs -f        # follow logs if needed
+docker compose stop           # stop without removing
+docker compose restart        # clean restart (reconnects with no new QR)
+docker compose down           # stop and remove the container (session stays in ./data)
 ```
 
 The WhatsApp session **and** `chat-history.json` are stored in the local **`./data/`** directory
@@ -106,7 +114,9 @@ The WhatsApp session **and** `chat-history.json` are stored in the local **`./da
 directory is gitignored.
 
 **Notes:**
-- **First run must be attached** (`docker compose up`) to scan the QR; subsequent runs can be detached.
+- **Don't kill it right after the scan** — see step 2; this is the #1 cause of "asks for the QR every
+  time." Give it a minute to finish linking, then it survives restarts indefinitely.
+- **`init: true` + `stop_grace_period: 30s`** ensure Chromium shuts down cleanly (flushes the session).
 - **Config/secrets** stay in `.env` only — injected at runtime via `env_file`, never baked into the
   image (`.env` is in `.dockerignore`).
 - **Container runs as root** so the `./data` bind mount is writable regardless of host uid; files it

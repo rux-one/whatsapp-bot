@@ -62,8 +62,11 @@ client.on('ready', async () => {
   }
   console.log(`✅ Bot connected and ready! ids: ${[...botIds].join(', ')}`);
 });
+client.on('loading_screen', (percent, message) => console.log(`⏳ Loading ${percent}% - ${message}`));
+client.on('authenticated', () => console.log('🔑 Authenticated — stored session accepted (no QR needed)'));
+client.on('change_state', (state) => console.log(`🔄 State: ${state}`));
 client.on('auth_failure', (msg) => console.error('❌ Authentication failed:', msg));
-client.on('disconnected', (reason) => console.warn('⚠️  Disconnected:', reason));
+client.on('disconnected', (reason) => console.warn(`⚠️  Disconnected: ${reason}`));
 
 // Feature 1 — greet new members when they join a group
 client.on('group_join', async (notification) => {
@@ -158,4 +161,15 @@ function clearChromiumLocks() {
 }
 
 clearChromiumLocks();
-client.initialize();
+
+// On a container restart the previous instance may have only just dropped its WhatsApp connection.
+// Reconnecting within ~1s can race WhatsApp's server (it still sees the old session) and get the
+// device unpaired — which forces a new QR. A short startup delay lets the old connection lapse first.
+// Harmless locally (default 0); set WA_STARTUP_DELAY_MS in Docker where restarts are near-instant.
+const startupDelayMs = Number(process.env.WA_STARTUP_DELAY_MS || 0);
+if (startupDelayMs > 0) {
+  console.log(`Waiting ${startupDelayMs}ms before connecting (avoids re-pairing on fast restarts)…`);
+  setTimeout(() => client.initialize(), startupDelayMs);
+} else {
+  client.initialize();
+}
