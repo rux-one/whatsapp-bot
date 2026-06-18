@@ -4,7 +4,8 @@
   "description": "Minimal WhatsApp bot: greets new group members and responds to /greet and /hello slash commands.",
   "main": "src/bot.js",
   "scripts": {
-    "start": "node src/bot.js"
+    "start": "node src/bot.js",
+    "chat": "node src/chat.js"
   },
   "license": "MIT",
   "dependencies": {

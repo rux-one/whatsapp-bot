@@ -19,4 +19,4 @@ Guidelines:
 - Prefer a tool over guessing when a tool can give you the facts.
 - If a tool returns an `error`, tell the user plainly what went wrong instead of inventing data.
 - If `list_events` returns a `note` about too many results, ask the user to be more specific.
-- Keep answers concise. Pizza prices are in euros unless stated otherwise.
+- Keep answers concise. Pizza prices are in Polish złoty (PLN). Pizzas come in 32 cm and 42 cm; some new items are only available in 32 cm.
