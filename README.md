@@ -3,9 +3,11 @@
 A WhatsApp bot built on [`whatsapp-web.js`](https://wwebjs.dev/), driven by a local
 [Ollama](https://ollama.com/) LLM. It:
 
-- **Answers with an LLM** when you `@mention` it **or reply to one of its messages** — the mention
-  handle (if any) is stripped and the rest of your message is sent to Ollama. Conversation history
-  is kept per chat for context.
+- **Answers with an LLM that can use tools** when you `@mention` it **or reply to one of its
+  messages** — the mention handle (if any) is stripped and the rest is sent to Ollama. The model can
+  call tools (look up the pizza menu, search the web) and the answer is fed back automatically.
+  When a reply used tools, it ends with a `🔧 <tool names>` marker. Conversation history is kept per
+  chat for context.
 - **Greets new members** when they join a group chat.
 - **Responds to slash commands** `/greet` and `/hello` (in DMs or groups) with `Hello, World! 👋`.
 
@@ -43,18 +45,33 @@ cp .env.example .env
 | `WA_CLIENT_ID` | `whatsapp-bot` | Session name (run multiple bots side by side) |
 | `WA_DATA_PATH` | `./.wwebjs_auth` | Where the session **and chat history** are stored — point at a persistent volume in deployment |
 | `OLLAMA_URL` | `http://localhost:11434` | Base URL of the Ollama server |
-| `OLLAMA_MODEL` | `llama3.1` | Model used for `@mention` replies (must be pulled in Ollama) |
+| `OLLAMA_MODEL` | `gemma4:12b` | Model used for replies — **must support tool calling** (e.g. `gemma4:12b`, `llama3.1`, `qwen2.5`) |
+| `BRAVE_API_KEY` | *(empty)* | [Brave Search API](https://brave.com/search/api/) token for the `web_search` tool; without it that tool degrades gracefully |
 
 The greeting text and trigger commands are not sensitive, so they stay as constants at the top
 of `src/bot.js` rather than in `.env`.
 
 ### LLM behavior
 
-- The **system prompt** lives in `prompts/AGENT.md` — edit it to change the bot's persona/tone.
-  It's loaded at startup, so restart after editing.
+- The **system prompt** is assembled at startup from two files in `prompts/`:
+  - `SOUL.md` — *who* the assistant is (personality, language, response style).
+  - `SYSTEM.md` — *what* it does (operational rules for when to use each tool).
+
+  `SOUL.md` is prepended so the identity frames the rules. Restart after editing either.
+  (`prompts/AGENT.md` — the meetup knowledge base — is **not** loaded right now; it's kept for a
+  future iteration where it becomes OKF docs.)
+- **Tools** live in `src/tools/` and are auto-discovered. Two ship today:
+  - `list_pizzas` — reads the [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+    pizza catalog under `pizza/` (one markdown file per pizza). Editing/adding a pizza file changes
+    the menu with no code change.
+  - `web_search` — Brave Search (needs `BRAVE_API_KEY`).
+
+  **Add a tool** by dropping a file in `src/tools/` exporting
+  `{ name, description, parameters, handler }` — no other wiring needed.
 - **Chat history** is per chat (a group is one shared thread), capped to the last ~20 turns, and
-  persisted to `chat-history.json` under `WA_DATA_PATH` so context survives restarts. The system
-  prompt is always included regardless of the cap.
+  persisted to `chat-history.json` under `WA_DATA_PATH` so context survives restarts. Only the user
+  message and the model's final text are stored (intermediate tool calls and the `🔧` marker are not).
+  The system prompt is always included regardless of the cap.
 
 The WhatsApp login itself is **not** in `.env` — it's a session stored under `WA_DATA_PATH`
 (via `LocalAuth`). Keep that directory persistent across restarts so you don't re-scan the QR,

@@ -2,6 +2,7 @@ node_modules/
 .wwebjs_auth/
 .wwebjs_cache/
 data/
+ollama-tools/
 .env
 .env.*
 !.env.example
