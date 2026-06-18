@@ -15,6 +15,9 @@ const BRAVE_API_KEY = process.env.BRAVE_API_KEY || '';
 // regardless of cwd; defaults to ../knowledge/pizza relative to this file.
 const PIZZA_DIR = path.resolve(process.env.PIZZA_DIR || path.join(__dirname, '..', 'knowledge', 'pizza'));
 
+// OKF events bundle directory (the list_events tool's data store).
+const EVENTS_DIR = path.resolve(process.env.EVENTS_DIR || path.join(__dirname, '..', 'knowledge', 'events'));
+
 // Safety cap on the tool-call loop per turn so a misbehaving model can't spin forever.
 const MAX_TOOL_ITERS = Number(process.env.MAX_TOOL_ITERS || 5);
 
@@ -22,4 +25,4 @@ const MAX_TOOL_ITERS = Number(process.env.MAX_TOOL_ITERS || 5);
 // huge paste can't blow up the prompt/context. 4000 chars comfortably covers normal chat messages.
 const MAX_INPUT_LIMIT = Number(process.env.MAX_INPUT_LIMIT || 4000);
 
-module.exports = { OLLAMA_URL, OLLAMA_MODEL, BRAVE_API_KEY, PIZZA_DIR, MAX_TOOL_ITERS, MAX_INPUT_LIMIT };
+module.exports = { OLLAMA_URL, OLLAMA_MODEL, BRAVE_API_KEY, PIZZA_DIR, EVENTS_DIR, MAX_TOOL_ITERS, MAX_INPUT_LIMIT };
