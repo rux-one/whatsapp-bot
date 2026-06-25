@@ -129,7 +129,18 @@ client.on('message', async (msg) => {
     const chat = await msg.getChat();
     await chat.sendStateTyping();
     try {
-      const reply = await llm.ask(msg.from, prompt);
+      // Identify the sender so tools (e.g. pizza-order) can record "who" reliably instead of the
+      // model guessing. In groups msg.author is the sender id; in DMs it's undefined so fall back
+      // to msg.from. The display name comes from the contact (pushname/name), else the number.
+      const senderId = msg.author || msg.from;
+      let senderName = senderId;
+      try {
+        const contact = await msg.getContact();
+        senderName = contact?.pushname || contact?.name || contact?.number || senderId;
+      } catch (err) {
+        console.warn('Could not resolve sender contact:', err.message);
+      }
+      const reply = await llm.ask(msg.from, prompt, { senderId, senderName });
       await msg.reply(reply);
     } catch (err) {
       console.error('LLM error:', err.message);

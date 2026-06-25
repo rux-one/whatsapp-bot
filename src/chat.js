@@ -9,7 +9,7 @@ function prompt() {
     const text = line.trim();
     if (!text) { prompt(); return; }
     try {
-      const reply = await ask('cli', text);
+      const reply = await ask('cli', text, { senderId: 'cli', senderName: 'You' });
       console.log(`\nbot> ${reply}\n`);
     } catch (err) {
       console.error(`\nerror> ${err.message}\n`);

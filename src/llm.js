@@ -64,9 +64,11 @@ async function ollamaChat(messages) {
  * If any tools were used, a "🔧 <names>" marker is appended to the returned reply (but not stored).
  * @param {string} chatId
  * @param {string} userText
+ * @param {{senderId?: string, senderName?: string}} [ctx] call-scoped context (who sent the message);
+ *   merged with chatId and passed to tools that need it (e.g. the pizza-order tools).
  * @returns {Promise<string>}
  */
-async function ask(chatId, userText) {
+async function ask(chatId, userText, ctx = {}) {
   // Guardrail: trim oversized input so a huge message can't blow up the prompt/context.
   if (userText.length > MAX_INPUT_LIMIT) {
     console.warn(`Input from ${chatId} trimmed: ${userText.length} -> ${MAX_INPUT_LIMIT} chars`);
@@ -80,6 +82,7 @@ async function ask(chatId, userText) {
     { role: 'user', content: userText },
   ];
 
+  const toolCtx = { chatId, ...ctx };
   const toolsUsed = [];
   let reply = null;
 
@@ -95,7 +98,7 @@ async function ask(chatId, userText) {
 
     for (const call of calls) {
       const { name, arguments: args } = call.function || {};
-      const result = await tools.dispatch(name, args);
+      const result = await tools.dispatch(name, args, toolCtx);
       toolsUsed.push(name);
       const preview = JSON.stringify(result);
       console.log(`[${new Date().toISOString()}] 🔧 ${name}(${JSON.stringify(args || {})})`);

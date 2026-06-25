@@ -1,29 +1,4 @@
-const fs = require('fs');
-const path = require('path');
-const matter = require('gray-matter');
-const { PIZZA_DIR } = require('../config');
-
-// Reads the OKF pizza bundle from PIZZA_DIR. Each non-reserved `<id>.md` is one pizza; the OKF
-// concept id is the filename minus `.md`. Frontmatter (type/title/description/tags/price/toppings)
-// is the structured data we return; `index.md` is the reserved OKF index and is skipped.
-function readPizzas() {
-  const files = fs
-    .readdirSync(PIZZA_DIR)
-    .filter((f) => f.endsWith('.md') && f !== 'index.md');
-
-  return files.map((file) => {
-    const id = file.replace(/\.md$/, '');
-    const { data } = matter(fs.readFileSync(path.join(PIZZA_DIR, file), 'utf8'));
-    return {
-      id,
-      title: data.title || id,
-      description: data.description || '',
-      price: data.price ?? null,
-      toppings: data.toppings || [],
-      tags: data.tags || [],
-    };
-  });
-}
+const { readPizzas } = require('../pizza-data');
 
 module.exports = {
   name: 'list_pizzas',

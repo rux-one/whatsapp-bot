@@ -25,4 +25,12 @@ const MAX_TOOL_ITERS = Number(process.env.MAX_TOOL_ITERS || 5);
 // huge paste can't blow up the prompt/context. 4000 chars comfortably covers normal chat messages.
 const MAX_INPUT_LIMIT = Number(process.env.MAX_INPUT_LIMIT || 4000);
 
-module.exports = { OLLAMA_URL, OLLAMA_MODEL, BRAVE_API_KEY, PIZZA_DIR, EVENTS_DIR, MAX_TOOL_ITERS, MAX_INPUT_LIMIT };
+// Pizza-order defaults (overridable per session at start_pizza_order). Slices per whole pizza drives
+// the per-slice price; the size picks which OKF price field is used (42cm = large, the sharing default).
+const ORDER_SLICES_PER_PIZZA = Number(process.env.ORDER_SLICES_PER_PIZZA || 8);
+const ORDER_DEFAULT_SIZE = process.env.ORDER_DEFAULT_SIZE === '32cm' ? '32cm' : '42cm';
+
+module.exports = {
+  OLLAMA_URL, OLLAMA_MODEL, BRAVE_API_KEY, PIZZA_DIR, EVENTS_DIR, MAX_TOOL_ITERS, MAX_INPUT_LIMIT,
+  ORDER_SLICES_PER_PIZZA, ORDER_DEFAULT_SIZE,
+};

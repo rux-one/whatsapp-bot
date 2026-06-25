@@ -34,12 +34,14 @@ const definitions = [...registry.values()].map((t) => ({
 }));
 
 // Run a tool by name. Never throws: a failing tool returns { error } so the model can see what
-// went wrong and recover instead of crashing the loop.
-async function dispatch(name, args) {
+// went wrong and recover instead of crashing the loop. `ctx` carries call-scoped context the model
+// can't supply — { chatId, senderId, senderName } — for tools that need to know who/where they run
+// (e.g. the pizza-order tools). Tools that don't need it simply ignore the second argument.
+async function dispatch(name, args, ctx) {
   const tool = registry.get(name);
   if (!tool) return { error: `unknown tool: ${name}` };
   try {
-    return await tool.handler(args || {});
+    return await tool.handler(args || {}, ctx || {});
   } catch (err) {
     return { error: `${name} failed: ${err.message}` };
   }
